@@ -1,0 +1,22 @@
+// main program for csi
+// license: zlib
+// copyright (c) 2010 darkf
+#include <cstdio>
+#include "cube.h"
+
+const int BUFSIZE = 1024;
+
+int main()
+{
+  char buf[BUFSIZE];
+  printf("csi v0.0\n");
+
+  while(true)
+  {
+      printf(">>> ");
+      fgets(buf, BUFSIZE, stdin);
+      printf("> %s\n", executeret(buf));
+  }
+
+  return 0;
+}

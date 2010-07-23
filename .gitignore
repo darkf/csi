@@ -1,0 +1,5 @@
+csi.layout
+csi.depend
+obj
+.svn
+*.svn-base
