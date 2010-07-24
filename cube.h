@@ -53,7 +53,6 @@
 #include "GL/glext.h"
 #endif
 
-#include <enet/enet.h>
 
 #include <zlib.h>
 
