@@ -6,6 +6,7 @@
 
 #ifdef WIN32
 #define getcwd _getcwd
+#define chdir _chdir
 #endif
 
 #ifndef MAX_PATH
@@ -70,6 +71,7 @@ void csfclose(char *fds)
 
 ICOMMAND(wait, "i", (int *secs), cswait(*secs));
 ICOMMAND(getcwd, "", (), { char r[MAX_PATH]; getcwd(r, MAX_PATH); result(r); });
+ICOMMAND(chdir, "s", (char *path), intret(chdir(path) == 0 ? CS_TRUE : CS_FALSE));
 ICOMMAND(fopen, "sss", (char *fd, char *path, char *mode), csfopen(fd, path, mode));
 ICOMMAND(fread, "ssi", (char *fds, char *csbuf, int *len), csfread(fds, csbuf, *len));
 ICOMMAND(fclose, "s", (char *fds), csfclose(fds));
