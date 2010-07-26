@@ -30,7 +30,8 @@ void cswait(int secs)
 }
 
 // file i/o
-#define GET_FDS const char *a = getalias(fds); \
+#define GET_FDS FILE *fd; \
+    const char *a = getalias(fds); \
     fd = (FILE *) atol(a);
 
 void csfopen(char *fd, char *path, char *mode)
@@ -48,7 +49,6 @@ void csfopen(char *fd, char *path, char *mode)
 
 void csfread(char *fds, char *csbuf, int len)
 {
-    FILE *fd;
     GET_FDS
     char buf[4096]; // TODO: memory management (refcounts? pool?)
 
@@ -65,21 +65,18 @@ void csfread(char *fds, char *csbuf, int len)
 
 void csfclose(char *fds)
 {
-    FILE *fd;
     GET_FDS
     intret(fclose(fd) ? CS_FALSE : CS_TRUE);
 }
 
 void csfseek(char *fds, long offset, int origin)
 {
-    FILE *fd;
     GET_FDS
     intret(fseek(fd, offset, origin) == 0 ? CS_TRUE : CS_FALSE);
 }
 
 void csftell(char *fds)
 {
-    FILE *fd;
     GET_FDS
     intret(ftell(fd));
 }
