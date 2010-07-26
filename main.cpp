@@ -11,6 +11,8 @@ int main(int argc, char *argv[])
   char buf[BUFSIZE];
   printf("csi v0.0\n");
 
+  execfile("stdlib.cfg", true);
+
   if(argc > 1)
   {
       execfile(argv[1], true);

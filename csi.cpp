@@ -30,6 +30,9 @@ void cswait(int secs)
 }
 
 // file i/o
+#define GET_FDS const char *a = getalias(fds); \
+    fd = (FILE *) atol(a);
+
 void csfopen(char *fd, char *path, char *mode)
 {
     FILE *f = fopen(path, mode);
@@ -46,9 +49,8 @@ void csfopen(char *fd, char *path, char *mode)
 void csfread(char *fds, char *csbuf, int len)
 {
     FILE *fd;
-    const char *a = getalias(fds);
+    GET_FDS
     char buf[4096]; // TODO: memory management (refcounts? pool?)
-    fd = (FILE *) atol(a);
 
     if(len > 4096)
     {
@@ -64,9 +66,22 @@ void csfread(char *fds, char *csbuf, int len)
 void csfclose(char *fds)
 {
     FILE *fd;
-    const char *a = getalias(fds);
-    fd = (FILE *) atol(a);
+    GET_FDS
     intret(fclose(fd) ? CS_FALSE : CS_TRUE);
+}
+
+void csfseek(char *fds, long offset, int origin)
+{
+    FILE *fd;
+    GET_FDS
+    intret(fseek(fd, offset, origin) == 0 ? CS_TRUE : CS_FALSE);
+}
+
+void csftell(char *fds)
+{
+    FILE *fd;
+    GET_FDS
+    intret(ftell(fd));
 }
 
 ICOMMAND(wait, "i", (int *secs), cswait(*secs));
@@ -74,4 +89,6 @@ ICOMMAND(getcwd, "", (), { char r[MAX_PATH]; getcwd(r, MAX_PATH); result(r); });
 ICOMMAND(chdir, "s", (char *path), intret(chdir(path) == 0 ? CS_TRUE : CS_FALSE));
 ICOMMAND(fopen, "sss", (char *fd, char *path, char *mode), csfopen(fd, path, mode));
 ICOMMAND(fread, "ssi", (char *fds, char *csbuf, int *len), csfread(fds, csbuf, *len));
+ICOMMAND(fseek, "sii", (char *fds, int *offset, int *origin), csfseek(fds, (long) *offset, *origin));
+ICOMMAND(ftell, "s", (char *fds), csftell(fds));
 ICOMMAND(fclose, "s", (char *fds), csfclose(fds));
