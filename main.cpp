@@ -6,10 +6,18 @@
 
 const int BUFSIZE = 1024;
 
-int main()
+int main(int argc, char *argv[])
 {
   char buf[BUFSIZE];
   printf("csi v0.0\n");
+
+  execfile("stdlib.cfg", true);
+
+  if(argc > 1)
+  {
+      execfile(argv[1], true);
+      return 0;
+  }
 
   while(true)
   {
