@@ -1072,14 +1072,14 @@ ICOMMAND(loopfiles, "ssss", (char *var, char *dir, char *ext, char *body),
 ICOMMAND(+, "V", (char **args, int *numargs),
 {
     int val = 0;
-    loopi(*numargs) val = val + parseint(args[i]);
+    loopi(*numargs) val += parseint(args[i]);
     intret(val);
 });
 //ICOMMAND(*, "ii", (int *a, int *b), intret(*a * *b));
 ICOMMAND(*, "V", (char **args, int *numargs),
 {
     int val = 1;
-    loopi(*numargs) val = val * parseint(args[i]);
+    loopi(*numargs) val *= parseint(args[i]);
     intret(val);
 });
 ICOMMAND(-, "ii", (int *a, int *b), intret(*a - *b));
@@ -1087,14 +1087,14 @@ ICOMMAND(-, "ii", (int *a, int *b), intret(*a - *b));
 ICOMMAND(+f, "V", (char **args, int *numargs),
 {
     float val = 0;
-    loopi(*numargs) val = val + parsefloat(args[i]);
+    loopi(*numargs) val += parsefloat(args[i]);
     floatret(val);
 });
 //ICOMMAND(*f, "ff", (float *a, float *b), floatret(*a * *b));
 ICOMMAND(*f, "V", (char **args, int *numargs),
 {
     float val = 1;
-    loopi(*numargs) val = val * parsefloat(args[i]);
+    loopi(*numargs) val *= parsefloat(args[i]);
     floatret(val);
 });
 ICOMMAND(-f, "ff", (float *a, float *b), floatret(*a - *b));
