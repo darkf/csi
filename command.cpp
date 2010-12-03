@@ -3,6 +3,7 @@
 
 #include "cube.h"
 #include <map>
+#include <string>
 
 hashset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;
@@ -18,34 +19,52 @@ ICOMMAND(__test, "i", (int *secs), _thistest(*secs));
 
 struct CSObject
 {
-    std::map<const char *, ident*> slots;
+    std::map<std::string, ident*> slots;
 
     void addSlot(const char *name, ident *id)
     {
-        slots.insert(std::pair<const char *, ident*>(name, id));
+        slots.insert(std::pair<std::string, ident*>(std::string(name), id));
     }
 };
 
 static bool initialized_ = false;
 
-std::map<const char *, CSObject&> objects;
+std::map<std::string, CSObject*> objects;
 
 // ridiculous prototype
 ident * lookup(const char * const &key)
 {
     //printf("key: %s\n", key);
+    char *p;
+
     if(!initialized_)
     {
         initialized_ = true;
 
-        static CSObject foo;
-        foo.addSlot("test", lookup("__test"));
-        objects.insert(std::pair<const char *, CSObject &>("foo", foo));
+        static CSObject *foo = new CSObject;
+        foo->addSlot("test", lookup("__test"));
+        objects.insert(std::pair<std::string, CSObject *>(std::string("foo"), foo));
     }
 
-    if(strstr(key, ":") != 0)
+    if((p = strstr(key, ":")) != 0)
     {
-        return objects["foo"].slots["test"];
+        char *first = strdup(key);
+        first[p-key] = '\0';
+        char *last = &first[p-first+1];
+
+        CSObject *obj = objects[std::string(first)];
+        if(obj)
+        {
+            ident *slot = obj->slots[std::string(last)];
+
+            if(slot) {
+                free(first);
+                return slot;
+            }
+        }
+
+        free(first);
+        return 0;
     }
 
     return idents.access(key);
