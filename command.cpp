@@ -75,6 +75,16 @@ ident & lookup(const char * const &key, const ident &elem)
     return idents.access(key, elem);
 }
 
+void addObject(char *name, char *method, char *methodData)
+{
+    CSObject *obj = new CSObject;
+    alias(method, methodData);
+    obj->addSlot(method, lookup(method));
+    objects.insert(std::pair<std::string,CSObject*>(std::string(name),obj));
+}
+
+COMMAND(addObject, "sss");
+
 static inline void freearg(tagval &v)
 {
     switch(v.type)
