@@ -2,6 +2,7 @@
 // is largely backwards compatible with the quake console language.
 
 #include "cube.h"
+#include <map>
 
 hashset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;
@@ -11,6 +12,49 @@ int identflags = IDF_PERSIST;
 static const int MAXARGS = 25;
 
 VARN(numargs, _numargs, MAXARGS, 0, 0);
+
+void _thistest(int secs) { printf("hi, %d\n", secs); }
+ICOMMAND(__test, "i", (int *secs), _thistest(*secs));
+
+struct CSObject
+{
+    std::map<const char *, ident*> slots;
+
+    void addSlot(const char *name, ident *id)
+    {
+        slots.insert(std::pair<const char *, ident*>(name, id));
+    }
+};
+
+static bool initialized_ = false;
+
+std::map<const char *, CSObject&> objects;
+
+// ridiculous prototype
+ident * lookup(const char * const &key)
+{
+    //printf("key: %s\n", key);
+    if(!initialized_)
+    {
+        initialized_ = true;
+
+        static CSObject foo;
+        foo.addSlot("test", lookup("__test"));
+        objects.insert(std::pair<const char *, CSObject &>("foo", foo));
+    }
+
+    if(strstr(key, ":") != 0)
+    {
+        return objects["foo"].slots["test"];
+    }
+
+    return idents.access(key);
+}
+
+ident & lookup(const char * const &key, const ident &elem)
+{
+    return idents.access(key, elem);
+}
 
 static inline void freearg(tagval &v)
 {
@@ -167,7 +211,7 @@ static inline ident *addident(const ident &id)
         identinits->add(id);
         return NULL;
     }
-    ident &def = idents.access(id.name, id);
+    ident &def = lookup(id.name, id);
     def.index = identmap.length();
     return identmap.add(&def);
 }
@@ -274,7 +318,7 @@ ICOMMAND(push, "rte", (ident *id, tagval *v, uint *code),
 
 ident *newident(const char *name, int flags)
 {
-    ident *id = idents.access(name);
+    ident *id = lookup(name);
     if(!id)
     {
         ident init(ID_ALIAS, newstring(name), flags);
@@ -285,7 +329,7 @@ ident *newident(const char *name, int flags)
 
 void resetvar(char *name)
 {
-    ident *id = idents.access(name);
+    ident *id = lookup(name);
     if(!id) return;
     if(id->flags&IDF_READONLY) debugcode("variable %s is read-only", id->name);
     else clearoverride(*id);
@@ -303,7 +347,7 @@ static inline void setalias(ident &id, tagval &v)
 
 static void setalias(const char *name, tagval &v)
 {
-    ident *id = idents.access(name);
+    ident *id = lookup(name);
     if(id)
     {
         if(id->type == ID_ALIAS) setalias(*id, v);
@@ -362,7 +406,7 @@ char *svariable(const char *name, const char *cur, char **storage, identfun fun,
 }
 
 #define _GETVAR(id, vartype, name, retval) \
-    ident *id = idents.access(name); \
+    ident *id = lookup(name); \
     if(!id || id->type!=vartype) return retval;
 #define GETVAR(id, name, retval) _GETVAR(id, ID_VAR, name, retval)
 #define OVERRIDEVAR(errorval, saveval, resetval, clearval) \
@@ -420,12 +464,12 @@ int getvarmax(const char *name)
     GETVAR(id, name, 0);
     return id->maxval;
 }
-bool identexists(const char *name) { return idents.access(name)!=NULL; }
-ident *getident(const char *name) { return idents.access(name); }
+bool identexists(const char *name) { return lookup(name)!=NULL; }
+ident *getident(const char *name) { return lookup(name); }
 
 void touchvar(const char *name)
 {
-    ident *id = idents.access(name);
+    ident *id = lookup(name);
     if(id) switch(id->type)
     {
         case ID_VAR:
@@ -438,7 +482,7 @@ void touchvar(const char *name)
 
 const char *getalias(const char *name)
 {
-    ident *i = idents.access(name);
+    ident *i = lookup(name);
     return i && i->type==ID_ALIAS ? i->getstr() : "";
 }
 
@@ -1071,7 +1115,7 @@ static void compilestatements(vector<uint> &code, const char *&p, int rettype, i
         }
         else
         {
-            id = idents.access(idname);
+            id = lookup(idname);
             if(!id)
             {
                 if(!isinteger(idname)) { compilestr(code, idname, idlen); delete[] idname; goto noid; }
@@ -1342,7 +1386,7 @@ static const uint *runcode(const uint *code, tagval &result)
                 #define LOOKUPU(aval, sval, ival, fval) { \
                     tagval &arg = args[numargs-1]; \
                     if(arg.type != VAL_STR && arg.type != VAL_MACRO) continue; \
-                    id = idents.access(arg.s); \
+                    id = lookup(arg.s); \
                     if(id) switch(id->type) \
                     { \
                         case ID_ALIAS: if(id->flags&IDF_UNKNOWN) break; freearg(arg); aval; continue; \
@@ -1528,7 +1572,7 @@ static const uint *runcode(const uint *code, tagval &result)
 
             case CODE_CALLU|RET_NULL: case CODE_CALLU|RET_STR: case CODE_CALLU|RET_FLOAT: case CODE_CALLU|RET_INT:
                 if(args[0].type != VAL_STR) goto litval;
-                id = idents.access(args[0].s);
+                id = lookup(args[0].s);
                 if(!id)
                 {
                 noid:
