@@ -19,15 +19,21 @@ ICOMMAND(__test, "i", (int *secs), _thistest(*secs));
 
 struct CSObject
 {
-    //hashtable<const char*, ident*> slots;
     vector<const char *> slots_keys;
     vector<ident*> slots_values;
-    int errpar;
 
     void addSlot(const char *name, ident *id)
     {
         slots_keys.add(name);
         slots_values.add(id);
+    }
+
+    ident * getSlot(const char *name)
+    {
+        for(int i = 0; i < slots_keys.length(); i++)
+          if(strcmp(slots_keys[i], name) == 0)
+            return slots_values[i];
+        return 0;
     }
 
     void serialize(char *buf)
@@ -55,7 +61,24 @@ struct CSObject
 
 static bool initialized_ = false;
 
-//std::map<std::string, CSObject*> objects;
+CSObject * lookup_object(const char * name)
+{
+    const char *objstr = getalias(name);
+    if(!objstr)
+      return 0;
+
+    // parse the object string
+    if(memcmp((void *)objstr, (void *)"#<object", 8) != 0)
+      return 0; // not an object string
+
+    char *p = strstr(objstr, "0x");
+    char newp[7];
+    strncpy(newp, p+2, 6);
+    newp[6] = '\0';
+
+    long ptr = strtol(newp, 0, 16);
+    return (CSObject *) ptr;
+}
 
 // ridiculous prototype
 ident * lookup(const char * const &key)
@@ -81,17 +104,17 @@ ident * lookup(const char * const &key)
         first[p-key] = '\0';
         char *last = &first[p-first+1];
 
-/*
-        CSObject *obj = objects[first];
+
+        CSObject *obj = lookup_object(first);
         if(obj)
         {
-            ident *slot = obj->slots[last];
+            ident *slot = obj->getSlot(last);
 
             if(slot) {
                 free(first);
                 return slot;
             }
-        }*/
+        }
 
         free(first);
         return 0;
@@ -103,25 +126,6 @@ ident * lookup(const char * const &key)
 ident & lookup(const char * const &key, const ident &elem)
 {
     return idents.access(key, elem);
-}
-
-CSObject * lookup_object(const char * name)
-{
-    const char *objstr = getalias(name);
-    if(!objstr)
-      return 0;
-
-    // parse the object string
-    if(memcmp((void *)objstr, (void *)"#<object", 8) != 0)
-      return 0; // not an object string
-
-    char *p = strstr(objstr, "0x");
-    char newp[7];
-    strncpy(newp, p+2, 6);
-    newp[6] = '\0';
-
-    long ptr = strtol(newp, 0, 16);
-    return (CSObject *) ptr;
 }
 
 void addObject(char *name, char *method, char *methodData)
