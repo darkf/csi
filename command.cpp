@@ -26,47 +26,36 @@ struct CSObject
 
     void addSlot(const char *name, ident *id)
     {
-        //slots.access(name, id);
-        printf("addslot: %d\n", slots_keys.length());
         slots_keys.add(name);
         slots_values.add(id);
     }
 
-    char * serialize(CSObject *obj = 0)
+    void serialize(char *buf)
     {
-        char serialization[20];
-        if(!obj)
-          obj = this;
-        sprintf(serialization, "#<object 0x%04x>", obj);
-        return serialization;
+        sprintf(buf, "#<object 0x%04x>", this);
+        printf("s: %s\n", buf);
     }
 
-    char * clone()
+    CSObject * clone()
     {
-        //char serialization[20];
         CSObject *obj = new CSObject();
-
-        printf("???\n");
-        printf("errpar: %d\n", errpar);
 
         if(!obj) printf(".....!\n");
         else printf("obj: %p\n", obj);
 
-        printf("length: %d\n", slots_keys.length());
         for(int i = 0; i < slots_keys.length(); i++)
         {
             obj->slots_keys.add(slots_keys[i]);
             obj->slots_values.add(slots_values[i]);
         }
 
-        //sprintf(serialization, "#<object 0x%04x>", obj);
-        return serialize(obj);
+        return obj;
     }
 };
 
 static bool initialized_ = false;
 
-std::map<std::string, CSObject*> objects;
+//std::map<std::string, CSObject*> objects;
 
 // ridiculous prototype
 ident * lookup(const char * const &key)
@@ -77,13 +66,13 @@ ident * lookup(const char * const &key)
     if(!initialized_)
     {
         initialized_ = true;
+        char s[22];
 
         CSObject *foo = new CSObject();
-        foo->errpar = 666;
         foo->addSlot("test", lookup("__test"));
-        //objects.insert(std::pair<std::string, CSObject *>(std::string("foo"), foo));
         printf("foo @ %p\n", foo);
-        alias("foo", foo->serialize());
+        foo->serialize(s);
+        alias("foo", s);
     }
 
     if((p = strstr(key, ":")) != 0)
@@ -131,9 +120,7 @@ CSObject * lookup_object(const char * name)
     strncpy(newp, p+2, 6);
     newp[6] = '\0';
 
-    printf("newp: %s\n", newp);
     long ptr = strtol(newp, 0, 16);
-    printf("ptr: %04X\n", ptr);
     return (CSObject *) ptr;
 }
 
@@ -142,9 +129,9 @@ void addObject(char *name, char *method, char *methodData)
     CSObject *obj = new CSObject;
     alias(method, methodData);
     obj->addSlot(method, lookup(method));
-    //objects.insert(std::pair<std::string,CSObject*>(std::string(name),obj));
-    printf("addobject: %d\n", obj->slots_keys.length());
-    alias(name, obj->serialize());
+    char s[22];
+    obj->serialize(s);
+    alias(name, s);
 }
 
 void newObject(char *name)
@@ -156,7 +143,9 @@ void newObject(char *name)
         return;
     }
 
-    result(obj->clone());
+    char s[22];
+    obj->serialize(s);
+    result(s);
 }
 
 COMMAND(addObject, "sss");
