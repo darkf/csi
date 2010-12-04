@@ -147,8 +147,10 @@ void newObject(char *name)
         return;
     }
 
+    CSObject *clone = obj->clone();
+
     char s[22];
-    obj->serialize(s);
+    clone->serialize(s);
     result(s);
 }
 
