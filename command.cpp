@@ -19,11 +19,43 @@ ICOMMAND(__test, "i", (int *secs), _thistest(*secs));
 
 struct CSObject
 {
-    std::map<std::string, ident*> slots;
+    //hashtable<const char*, ident*> slots;
+    vector<const char *> slots_keys;
+    vector<ident*> slots_values;
 
     void addSlot(const char *name, ident *id)
     {
-        slots.insert(std::pair<std::string, ident*>(std::string(name), id));
+        //slots.access(name, id);
+        slots_keys.add(name);
+        slots_values.add(id);
+    }
+
+    char * serialize(CSObject *obj = 0)
+    {
+        char serialization[20];
+        if(!obj)
+          obj = this;
+        sprintf(serialization, "#<object 0x%04x>", obj);
+        return serialization;
+    }
+
+    char * clone()
+    {
+        //char serialization[20];
+        CSObject *obj = new CSObject();
+
+        if(!obj) printf(".....!\n");
+        else printf("obj: %p\n", obj);
+
+        printf("length: %d\n", slots_keys.length());
+        for(int i = 0; i < slots_keys.length(); i++)
+        {
+            obj->slots_keys.add(slots_keys[i]);
+            obj->slots_values.add(slots_values[i]);
+        }
+
+        //sprintf(serialization, "#<object 0x%04x>", obj);
+        return serialize(obj);
     }
 };
 
@@ -41,9 +73,10 @@ ident * lookup(const char * const &key)
     {
         initialized_ = true;
 
-        static CSObject *foo = new CSObject;
+        static CSObject *foo = new CSObject();
         foo->addSlot("test", lookup("__test"));
-        objects.insert(std::pair<std::string, CSObject *>(std::string("foo"), foo));
+        //objects.insert(std::pair<std::string, CSObject *>(std::string("foo"), foo));
+        alias("foo", foo->serialize());
     }
 
     if((p = strstr(key, ":")) != 0)
@@ -52,16 +85,17 @@ ident * lookup(const char * const &key)
         first[p-key] = '\0';
         char *last = &first[p-first+1];
 
-        CSObject *obj = objects[std::string(first)];
+/*
+        CSObject *obj = objects[first];
         if(obj)
         {
-            ident *slot = obj->slots[std::string(last)];
+            ident *slot = obj->slots[last];
 
             if(slot) {
                 free(first);
                 return slot;
             }
-        }
+        }*/
 
         free(first);
         return 0;
@@ -75,6 +109,25 @@ ident & lookup(const char * const &key, const ident &elem)
     return idents.access(key, elem);
 }
 
+CSObject * lookup_object(const char * name)
+{
+    const char *objstr = getalias(name);
+    if(!objstr)
+      return 0;
+
+    // parse the object string
+    if(memcmp((void *)objstr, (void *)"#<object", 8) != 0)
+      return 0; // not an object string
+
+    char *p = strstr(objstr, "0x");
+    char newp[7];
+    strncpy(newp, p+2, 6);
+    newp[6] = '\0';
+
+    printf("newp: %s\n", newp);
+    return (CSObject *) newp;
+}
+
 void addObject(char *name, char *method, char *methodData)
 {
     CSObject *obj = new CSObject;
@@ -83,7 +136,20 @@ void addObject(char *name, char *method, char *methodData)
     objects.insert(std::pair<std::string,CSObject*>(std::string(name),obj));
 }
 
+void newObject(char *name)
+{
+    CSObject *obj = lookup_object(name);
+    if(!obj)
+    {
+        conoutf("no object named '%s'", name);
+        return;
+    }
+
+    result(obj->clone());
+}
+
 COMMAND(addObject, "sss");
+COMMAND(newObject, "s");
 
 static inline void freearg(tagval &v)
 {
