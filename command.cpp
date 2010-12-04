@@ -22,10 +22,12 @@ struct CSObject
     //hashtable<const char*, ident*> slots;
     vector<const char *> slots_keys;
     vector<ident*> slots_values;
+    int errpar;
 
     void addSlot(const char *name, ident *id)
     {
         //slots.access(name, id);
+        printf("addslot: %d\n", slots_keys.length());
         slots_keys.add(name);
         slots_values.add(id);
     }
@@ -43,6 +45,9 @@ struct CSObject
     {
         //char serialization[20];
         CSObject *obj = new CSObject();
+
+        printf("???\n");
+        printf("errpar: %d\n", errpar);
 
         if(!obj) printf(".....!\n");
         else printf("obj: %p\n", obj);
@@ -73,9 +78,11 @@ ident * lookup(const char * const &key)
     {
         initialized_ = true;
 
-        static CSObject *foo = new CSObject();
+        CSObject *foo = new CSObject();
+        foo->errpar = 666;
         foo->addSlot("test", lookup("__test"));
         //objects.insert(std::pair<std::string, CSObject *>(std::string("foo"), foo));
+        printf("foo @ %p\n", foo);
         alias("foo", foo->serialize());
     }
 
@@ -125,7 +132,9 @@ CSObject * lookup_object(const char * name)
     newp[6] = '\0';
 
     printf("newp: %s\n", newp);
-    return (CSObject *) newp;
+    long ptr = strtol(newp, 0, 16);
+    printf("ptr: %04X\n", ptr);
+    return (CSObject *) ptr;
 }
 
 void addObject(char *name, char *method, char *methodData)
@@ -133,7 +142,9 @@ void addObject(char *name, char *method, char *methodData)
     CSObject *obj = new CSObject;
     alias(method, methodData);
     obj->addSlot(method, lookup(method));
-    objects.insert(std::pair<std::string,CSObject*>(std::string(name),obj));
+    //objects.insert(std::pair<std::string,CSObject*>(std::string(name),obj));
+    printf("addobject: %d\n", obj->slots_keys.length());
+    alias(name, obj->serialize());
 }
 
 void newObject(char *name)
