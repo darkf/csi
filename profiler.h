@@ -15,7 +15,7 @@ enum
     PROF_CONV    = 1<<3
 };
 
-extern int _profile;
+extern int _profiler;
 
 void profoutfv(int type, const char *fmt, va_list args);
 void profoutf(const char *fmt, ...);
