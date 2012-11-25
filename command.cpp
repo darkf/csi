@@ -1454,12 +1454,10 @@ static const uint *runcode(const uint *code, tagval &result)
                     }
                 forcenull(result);
                 #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n].s : (void *)&args[n].i)
-                printf("callcom[0]: %s\n", id->name);
                 call_begin(id->name);
                 CALLCOM
                 #undef ARG
             forceresult:
-                printf("forceresult\n");
                 call_end();
                 freeargs(args, numargs, 0);
                 forcearg(result, op&CODE_RET_MASK);
@@ -1474,14 +1472,12 @@ static const uint *runcode(const uint *code, tagval &result)
             case CODE_COMV|RET_NULL: case CODE_COMV|RET_STR: case CODE_COMV|RET_FLOAT: case CODE_COMV|RET_INT:
                 id = identmap[op>>8];
                 forcenull(result);
-                printf("comv\n");
                 call_begin(id->name);
                 ((comfunv)id->fun)(args, numargs);
                 goto forceresult;
             case CODE_COMC|RET_NULL: case CODE_COMC|RET_STR: case CODE_COMC|RET_FLOAT: case CODE_COMC|RET_INT:
                 id = identmap[op>>8];
                 forcenull(result);
-                printf("comc\n");
                 call_begin(id->name);
                 {
                     vector<char> buf;
@@ -1559,10 +1555,8 @@ static const uint *runcode(const uint *code, tagval &result)
                     continue;
                 }
                 forcenull(result);
-                printf("call[0]: %s\n", id->name);
                 call_begin(id->name);
                 CALLALIAS(0);
-                printf("resultcall[0]\n");
                 call_end();
                 continue;
 
@@ -1581,7 +1575,6 @@ static const uint *runcode(const uint *code, tagval &result)
                     case ID_COMMAND:
                     {
                         int i = 1, maxargs = MAXARGS;
-                        printf("command[0]: %s\n", id->name);
                         for(const char *fmt = id->args; *fmt && i < maxargs; fmt++, i++) switch(*fmt)
                         {
                             case 'i': if(numargs <= i) args[numargs++].setint(0); else forceint(args[i]); break;
@@ -1620,7 +1613,6 @@ static const uint *runcode(const uint *code, tagval &result)
                             case '1': case '2': case '3': case '4': if(numargs <= i) { fmt -= *fmt-'0'+1; maxargs = numargs; } break;
                         }
                         #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n+1].s : (void *)&args[n+1].i)
-                        printf("callcom[1]: %s\n", id->name);
                         call_begin(id->name);
                         CALLCOM
                         #undef ARG
@@ -1648,10 +1640,8 @@ static const uint *runcode(const uint *code, tagval &result)
                     case ID_ALIAS:
                         if(id->valtype==VAL_NULL) goto noid;
                         freearg(args[0]);
-                        printf("call[1]: %s\n", id->name);
                         call_begin(id->name);
                         CALLALIAS(1);
-                        printf("resultcall[1]\n");
                         call_end();
                         continue;
                     default:
