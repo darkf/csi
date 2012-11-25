@@ -15,8 +15,7 @@ int identflags = IDF_PERSIST;
 static const int MAXARGS = 25;
 
 VARN(numargs, _numargs, MAXARGS, 0, 0);
-
-static bool doProfile = false;
+VARN(profile, doProfile, 0, 0, 1);
 
 struct CallInfo
 {
@@ -45,7 +44,6 @@ void proftab()
     }
 }
 
-ICOMMAND(profile, "i", (int *flag), intret(doProfile = *flag));
 COMMAND(proftab, "");
 
 void call_end()
