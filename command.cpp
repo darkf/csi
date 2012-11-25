@@ -1248,16 +1248,16 @@ static const uint *runcode(const uint *code, tagval &result)
     result.setnull();
     commandret = &result;
     
-    #define ADD_TO_STACK \
+    #define ADD_TO_STACK(type) \
         identlink aliaslink = { id, aliasstack, clock() }; \
         aliasstack = &aliaslink;
         
-    #define REMOVE_FROM_STACK \
+    #define REMOVE_FROM_STACK(type) \
         if(_profiler) \
         { \
             clock_t end = clock(); \
             double diff = (end - aliasstack->start) / (double) CLOCKS_PER_SEC; \
-            profoutf("call to %s took %f seconds\n", aliasstack->id->name, diff); \
+            profoutf(type, "call to %s took %f seconds\n", aliasstack->id->name, diff); \
         } \
         aliasstack = aliaslink.next;
     for(;;)
@@ -1426,7 +1426,7 @@ static const uint *runcode(const uint *code, tagval &result)
             callcom:
 #endif
                 #define CALLCOM \
-                    ADD_TO_STACK \
+                    ADD_TO_STACK(PROF_COMMAND) \
                     switch(numargs) \
                     { \
                         case 0: ((comfun)id->fun)(); break; \
@@ -1440,7 +1440,7 @@ static const uint *runcode(const uint *code, tagval &result)
                         case 8: ((comfun8)id->fun)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5), ARG(6), ARG(7)); break; \
                         default: fatal("builtin declared with too many args"); \
                     } \
-                    REMOVE_FROM_STACK
+                    REMOVE_FROM_STACK(PROF_COMMAND)
                 forcenull(result);
                 #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n].s : (void *)&args[n].i)
                 CALLCOM
@@ -1461,9 +1461,9 @@ static const uint *runcode(const uint *code, tagval &result)
             {
                 id = identmap[op>>8];
                 forcenull(result);
-                ADD_TO_STACK
+                ADD_TO_STACK(PROF_CONV)
                 ((comfunv)id->fun)(args, numargs);
-                REMOVE_FROM_STACK
+                REMOVE_FROM_STACK(PROF_CONV)
                 goto forceresult;
             }
             case CODE_COMC|RET_NULL: case CODE_COMC|RET_STR: case CODE_COMC|RET_FLOAT: case CODE_COMC|RET_INT:
@@ -1472,9 +1472,9 @@ static const uint *runcode(const uint *code, tagval &result)
                 forcenull(result);
                 {
                     vector<char> buf;
-                    ADD_TO_STACK
+                    ADD_TO_STACK(PROF_CONC)
                     ((comfun1)id->fun)(conc(buf, args, numargs, true));
-                    REMOVE_FROM_STACK
+                    REMOVE_FROM_STACK(PROF_CONC)
                 }
                 goto forceresult;
             }
@@ -1519,7 +1519,7 @@ static const uint *runcode(const uint *code, tagval &result)
                     _numargs = numargs-offset; \
                     int oldflags = identflags; \
                     identflags |= id->flags&IDF_OVERRIDDEN; \
-                    ADD_TO_STACK \
+                    ADD_TO_STACK(PROF_ALIAS) \
                     if(!id->code) \
                     { \
                         id->code = compilecode(id->getstr()); \
@@ -1530,7 +1530,7 @@ static const uint *runcode(const uint *code, tagval &result)
                     runcode(code+1, result); \
                     code[0] -= 0x100; \
                     if(!(code[0]>>8)) delete[] code; \
-                    REMOVE_FROM_STACK \
+                    REMOVE_FROM_STACK(PROF_ALIAS) \
                     identflags = oldflags; \
                     for(int i = 0; i < numargs-offset; i++) \
                         poparg(*argidents[i]); \
