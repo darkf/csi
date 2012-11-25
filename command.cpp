@@ -2,6 +2,9 @@
 // is largely backwards compatible with the quake console language.
 
 #include "cube.h"
+#include <ctime>
+#include <string>
+#include <stack>
 
 hashset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;
@@ -11,6 +14,31 @@ int identflags = IDF_PERSIST;
 static const int MAXARGS = 25;
 
 VARN(numargs, _numargs, MAXARGS, 0, 0);
+
+struct CallInfo
+{
+    std::string name;
+    std::clock_t start;
+};
+
+std::stack<CallInfo> _mystack;
+
+void call_begin(std::string name)
+{
+    CallInfo ci;
+    ci.name = name;
+    ci.start = std::clock();
+    _mystack.push(ci);
+}
+
+void call_end()
+{
+    CallInfo ci = _mystack.top();
+    _mystack.pop();
+    std::clock_t end = std::clock();
+    double diff = (end - ci.start) / (double) CLOCKS_PER_SEC;
+    printf("call to %s took %f seconds\n", ci.name.c_str(), diff);
+}
 
 static inline void freearg(tagval &v)
 {
@@ -1426,9 +1454,13 @@ static const uint *runcode(const uint *code, tagval &result)
                     }
                 forcenull(result);
                 #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n].s : (void *)&args[n].i)
+                printf("callcom[0]: %s\n", id->name);
+                call_begin(id->name);
                 CALLCOM
                 #undef ARG
             forceresult:
+                printf("forceresult\n");
+                call_end();
                 freeargs(args, numargs, 0);
                 forcearg(result, op&CODE_RET_MASK);
                 continue;
@@ -1442,11 +1474,15 @@ static const uint *runcode(const uint *code, tagval &result)
             case CODE_COMV|RET_NULL: case CODE_COMV|RET_STR: case CODE_COMV|RET_FLOAT: case CODE_COMV|RET_INT:
                 id = identmap[op>>8];
                 forcenull(result);
+                printf("comv\n");
+                call_begin(id->name);
                 ((comfunv)id->fun)(args, numargs);
                 goto forceresult;
             case CODE_COMC|RET_NULL: case CODE_COMC|RET_STR: case CODE_COMC|RET_FLOAT: case CODE_COMC|RET_INT:
                 id = identmap[op>>8];
                 forcenull(result);
+                printf("comc\n");
+                call_begin(id->name);
                 {
                     vector<char> buf;
                     ((comfun1)id->fun)(conc(buf, args, numargs, true));
@@ -1523,7 +1559,10 @@ static const uint *runcode(const uint *code, tagval &result)
                     continue;
                 }
                 forcenull(result);
+                printf("call[0]: %s\n", id->name);
+                call_begin(id->name);
                 CALLALIAS(0);
+                printf("resultcall[0]\n");
                 continue;
 
             case CODE_CALLU|RET_NULL: case CODE_CALLU|RET_STR: case CODE_CALLU|RET_FLOAT: case CODE_CALLU|RET_INT:
@@ -1541,6 +1580,7 @@ static const uint *runcode(const uint *code, tagval &result)
                     case ID_COMMAND:
                     {
                         int i = 1, maxargs = MAXARGS;
+                        printf("command[0]: %s\n", id->name);
                         for(const char *fmt = id->args; *fmt && i < maxargs; fmt++, i++) switch(*fmt)
                         {
                             case 'i': if(numargs <= i) args[numargs++].setint(0); else forceint(args[i]); break;
@@ -1579,6 +1619,8 @@ static const uint *runcode(const uint *code, tagval &result)
                             case '1': case '2': case '3': case '4': if(numargs <= i) { fmt -= *fmt-'0'+1; maxargs = numargs; } break;
                         }
                         #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n+1].s : (void *)&args[n+1].i)
+                        printf("callcom[1]: %s\n", id->name);
+                        call_begin(id->name);
                         CALLCOM
                         #undef ARG
                         goto forceresult;
@@ -1605,7 +1647,10 @@ static const uint *runcode(const uint *code, tagval &result)
                     case ID_ALIAS:
                         if(id->valtype==VAL_NULL) goto noid;
                         freearg(args[0]);
+                        printf("call[1]: %s\n", id->name);
+                        call_begin(id->name);
                         CALLALIAS(1);
+                        printf("resultcall[1]\n");
                         continue;
                     default:
                         goto forceresult;
