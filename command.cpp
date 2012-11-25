@@ -5,6 +5,7 @@
 #include <ctime>
 #include <string>
 #include <stack>
+#include <map>
 
 hashset<ident> idents; // contains ALL vars/commands/aliases
 vector<ident *> identmap;
@@ -15,29 +16,49 @@ static const int MAXARGS = 25;
 
 VARN(numargs, _numargs, MAXARGS, 0, 0);
 
+static bool doProfile = false;
+
 struct CallInfo
 {
     std::string name;
     std::clock_t start;
 };
 
-std::stack<CallInfo> _mystack;
+std::stack<CallInfo> _callstack;
+std::multimap<std::string, double> _profmap;
 
 void call_begin(std::string name)
 {
+    if(!doProfile) return;
+
     CallInfo ci;
     ci.name = name;
     ci.start = std::clock();
-    _mystack.push(ci);
+    _callstack.push(ci);
 }
+
+void proftab()
+{
+    for(std::multimap<std::string, double>::const_iterator it = _profmap.begin(); it != _profmap.end(); ++it)
+    {
+        printf("%s - %fs\n", (*it).first.c_str(), (*it).second);
+    }
+}
+
+ICOMMAND(profile, "i", (int *flag), intret(doProfile = *flag));
+COMMAND(proftab, "");
 
 void call_end()
 {
-    CallInfo ci = _mystack.top();
-    _mystack.pop();
+    if(!doProfile) return;
+    if(_callstack.empty()) return;
+
+    CallInfo ci = _callstack.top();
+    _callstack.pop();
     std::clock_t end = std::clock();
     double diff = (end - ci.start) / (double) CLOCKS_PER_SEC;
-    printf("call to %s took %f seconds\n", ci.name.c_str(), diff);
+    //printf("call to %s took %f seconds\n", ci.name.c_str(), diff);
+    _profmap.insert(std::make_pair(ci.name, diff));
 }
 
 static inline void freearg(tagval &v)
