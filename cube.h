@@ -69,6 +69,7 @@
 #include "command.h"
 
 #include "console.h"
+#include "profiler.h"
 
 #endif
 

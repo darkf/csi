@@ -213,6 +213,7 @@ static struct identlink
 {
     ident *id;
     identlink *next;
+    clock_t start;
 } *aliasstack = NULL;
 
 VAR(dbgalias, 0, 4, 1000);
@@ -1246,6 +1247,19 @@ static const uint *runcode(const uint *code, tagval &result)
     tagval args[MAXARGS], *prevret = commandret;
     result.setnull();
     commandret = &result;
+    
+    #define ADD_TO_STACK \
+        identlink aliaslink = { id, aliasstack, clock() }; \
+        aliasstack = &aliaslink;
+        
+    #define REMOVE_FROM_STACK \
+        if(_profiler) \
+        { \
+            clock_t end = clock(); \
+            double diff = (end - aliasstack->start) / (double) CLOCKS_PER_SEC; \
+            profoutf("call to %s took %f seconds\n", aliasstack->id->name, diff); \
+        } \
+        aliasstack = aliaslink.next;
     for(;;)
     {
         uint op = *code++;
@@ -1406,11 +1420,13 @@ static const uint *runcode(const uint *code, tagval &result)
             case CODE_FVAR1: setfvarchecked(identmap[op>>8], args[0].f); numargs = 0; continue;
 
             case CODE_COM|RET_NULL: case CODE_COM|RET_STR: case CODE_COM|RET_FLOAT: case CODE_COM|RET_INT:
+            {
                 id = identmap[op>>8];
 #ifndef STANDALONE
             callcom:
 #endif
                 #define CALLCOM \
+                    ADD_TO_STACK \
                     switch(numargs) \
                     { \
                         case 0: ((comfun)id->fun)(); break; \
@@ -1423,11 +1439,13 @@ static const uint *runcode(const uint *code, tagval &result)
                         case 7: ((comfun7)id->fun)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5), ARG(6)); break; \
                         case 8: ((comfun8)id->fun)(ARG(0), ARG(1), ARG(2), ARG(3), ARG(4), ARG(5), ARG(6), ARG(7)); break; \
                         default: fatal("builtin declared with too many args"); \
-                    }
+                    } \
+                    REMOVE_FROM_STACK
                 forcenull(result);
                 #define ARG(n) (id->argmask&(1<<n) ? (void *)args[n].s : (void *)&args[n].i)
                 CALLCOM
                 #undef ARG
+            }
             forceresult:
                 freeargs(args, numargs, 0);
                 forcearg(result, op&CODE_RET_MASK);
@@ -1440,19 +1458,26 @@ static const uint *runcode(const uint *code, tagval &result)
                 goto callcom;
 #endif
             case CODE_COMV|RET_NULL: case CODE_COMV|RET_STR: case CODE_COMV|RET_FLOAT: case CODE_COMV|RET_INT:
+            {
                 id = identmap[op>>8];
                 forcenull(result);
+                ADD_TO_STACK
                 ((comfunv)id->fun)(args, numargs);
+                REMOVE_FROM_STACK
                 goto forceresult;
+            }
             case CODE_COMC|RET_NULL: case CODE_COMC|RET_STR: case CODE_COMC|RET_FLOAT: case CODE_COMC|RET_INT:
+            {
                 id = identmap[op>>8];
                 forcenull(result);
                 {
                     vector<char> buf;
+                    ADD_TO_STACK
                     ((comfun1)id->fun)(conc(buf, args, numargs, true));
+                    REMOVE_FROM_STACK
                 }
                 goto forceresult;
-
+            }
             case CODE_CONC|RET_NULL: case CODE_CONC|RET_STR: case CODE_CONC|RET_FLOAT: case CODE_CONC|RET_INT:
             case CODE_CONCW|RET_NULL: case CODE_CONCW|RET_STR: case CODE_CONCW|RET_FLOAT: case CODE_CONCW|RET_INT:
             {
@@ -1485,6 +1510,7 @@ static const uint *runcode(const uint *code, tagval &result)
                 continue;
 
             case CODE_CALL|RET_NULL: case CODE_CALL|RET_STR: case CODE_CALL|RET_FLOAT: case CODE_CALL|RET_INT:
+            {
                 #define CALLALIAS(offset) { \
                     identstack argstack[MAXARGS]; \
                     for(int i = 0; i < numargs-offset; i++) \
@@ -1493,8 +1519,7 @@ static const uint *runcode(const uint *code, tagval &result)
                     _numargs = numargs-offset; \
                     int oldflags = identflags; \
                     identflags |= id->flags&IDF_OVERRIDDEN; \
-                    identlink aliaslink = { id, aliasstack }; \
-                    aliasstack = &aliaslink; \
+                    ADD_TO_STACK \
                     if(!id->code) \
                     { \
                         id->code = compilecode(id->getstr()); \
@@ -1505,7 +1530,7 @@ static const uint *runcode(const uint *code, tagval &result)
                     runcode(code+1, result); \
                     code[0] -= 0x100; \
                     if(!(code[0]>>8)) delete[] code; \
-                    aliasstack = aliaslink.next; \
+                    REMOVE_FROM_STACK \
                     identflags = oldflags; \
                     for(int i = 0; i < numargs-offset; i++) \
                         poparg(*argidents[i]); \
@@ -1525,7 +1550,7 @@ static const uint *runcode(const uint *code, tagval &result)
                 forcenull(result);
                 CALLALIAS(0);
                 continue;
-
+            }
             case CODE_CALLU|RET_NULL: case CODE_CALLU|RET_STR: case CODE_CALLU|RET_FLOAT: case CODE_CALLU|RET_INT:
                 if(args[0].type != VAL_STR) goto litval;
                 id = idents.access(args[0].s);
@@ -1603,10 +1628,12 @@ static const uint *runcode(const uint *code, tagval &result)
                         if(numargs <= 1) printvar(id); else setsvarchecked(id, forcestr(args[1]));
                         goto forceresult;
                     case ID_ALIAS:
+                    {
                         if(id->valtype==VAL_NULL) goto noid;
                         freearg(args[0]);
                         CALLALIAS(1);
                         continue;
+                    }
                     default:
                         goto forceresult;
                 }
@@ -1615,6 +1642,8 @@ static const uint *runcode(const uint *code, tagval &result)
 exit:
     commandret = prevret;
     return code;
+    #undef ADD_TO_STACK
+    #undef REMOVE_FROM_STACK
 }
 
 void executeret(const uint *code, tagval &result)
@@ -1771,6 +1800,11 @@ const char *floatstr(float v)
 void floatret(float v)
 {
     commandret->setfloat(v);
+}
+
+void strret(char *s)
+{
+    commandret->setstr(s);
 }
 
 #undef ICOMMANDNAME
