@@ -45,6 +45,8 @@
 		<Unit filename="csi.cpp" />
 		<Unit filename="cube.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="profiler.cpp" />
+		<Unit filename="profiler.h" />
 		<Unit filename="stream.cpp" />
 		<Unit filename="tools.cpp" />
 		<Unit filename="tools.h" />
