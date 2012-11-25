@@ -1563,6 +1563,7 @@ static const uint *runcode(const uint *code, tagval &result)
                 call_begin(id->name);
                 CALLALIAS(0);
                 printf("resultcall[0]\n");
+                call_end();
                 continue;
 
             case CODE_CALLU|RET_NULL: case CODE_CALLU|RET_STR: case CODE_CALLU|RET_FLOAT: case CODE_CALLU|RET_INT:
@@ -1651,6 +1652,7 @@ static const uint *runcode(const uint *code, tagval &result)
                         call_begin(id->name);
                         CALLALIAS(1);
                         printf("resultcall[1]\n");
+                        call_end();
                         continue;
                     default:
                         goto forceresult;
